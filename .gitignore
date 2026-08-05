@@ -1,0 +1,6 @@
+# Nix build outputs
+result
+result-*
+
+# direnv state
+.direnv

@@ -1,0 +1,3 @@
+[[IgnoredVulns]]
+id = "GHSA-mqxh-6gq7-558m"
+reason = "False positive: the advisory scanner compares Prime Agent's workspace version with the unrelated published pi package version." 
