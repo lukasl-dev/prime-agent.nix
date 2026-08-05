@@ -80,7 +80,7 @@ stdenv.mkDerivation {
         fetchurl,
         ...
       }@args:
-      import ./bun.nix args;
+      import ../bun.nix args;
   };
 
   # Native packages in this dependency graph ship suitable prebuilt artifacts.

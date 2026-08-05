@@ -68,7 +68,7 @@ buildNpmPackage' {
   # source archive may contain a different lockfile even when the tag itself
   # has not changed (the updater also normalises and audits this copy).
   prePatch = ''
-    cp ${./package-lock.json} package-lock.json
+    cp ${../package-lock.json} package-lock.json
   '';
 
   preBuild = ''

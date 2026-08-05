@@ -81,11 +81,11 @@
           packages = rec {
             default = prime-agent;
 
-            prime-agent = pkgs.callPackage ./package.nix {
+            prime-agent = pkgs.callPackage ./packages/package.nix {
               inherit src version npmDepsHash;
             };
 
-            prime-agent-bun = bunPkgs.callPackage ./package-bun.nix {
+            prime-agent-bun = bunPkgs.callPackage ./packages/package-bun.nix {
               src = bunSrc;
               inherit version;
             };
