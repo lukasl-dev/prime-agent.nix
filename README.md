@@ -58,7 +58,8 @@ The package includes Node.js, Git, SSH, ripgrep, fd, and uv in its runtime path.
     # themes = [ ./themes/custom.json ];
     # promptTemplates = [ ./prompts ];
     # models = ./models.json;
-    # settings.model = "gpt-5";
+    # settings.defaultProvider = "openai";
+    # settings.defaultModel = "gpt-5";
     # jail.enable = true;
     # extraArgs = [ "--provider" "openai" "--model" "gpt-5" ];
     # environment.OPENAI_API_KEY.file = config.sops.secrets.openai-api-key.path;
@@ -75,7 +76,8 @@ The package includes Node.js, Git, SSH, ripgrep, fd, and uv in its runtime path.
 
   programs.prime-agent = {
     enable = true;
-    settings.model = "gpt-5";
+    settings.defaultProvider = "openai";
+    settings.defaultModel = "gpt-5";
     environment.PRIME_AGENT_CODING_AGENT_DIR.value =
       "${config.home.homeDirectory}/.prime/agent";
   };
@@ -118,7 +120,7 @@ On Linux, Prime Agent can run in a [jail.nix](https://sr.ht/~alexdavid/jail.nix/
 programs.prime-agent.jail.enable = true;
 ```
 
-The default jail permits network access and mounts the invocation's working directory read-write. It also retains `~/.prime/agent` and the configured `PRIME_AGENT_CODING_AGENT_DIR`, allowing daemon state and the IPython kernel to survive invocations. Other home files and host tools remain unavailable unless explicitly exposed.
+The default jail permits network access and mounts the invocation's working directory read-write. It also retains `~/.prime/agent`, the configured `PRIME_AGENT_CODING_AGENT_DIR`, and Prime Agent's daemon socket state, allowing the daemon and IPython kernel to survive invocations. Files referenced by `environment.*.file` are mounted read-only automatically. Other home files and host tools remain unavailable unless explicitly exposed.
 
 ```nix
 programs.prime-agent.jail.permissions = combinators: with combinators; [

@@ -43,8 +43,10 @@ in
           downloads and mounts the invocation's working directory read-write.
 
           Prime Agent's user configuration and default IPython kernel state are
-          mounted separately and need not be listed here. The jail is available
-          only on Linux.
+          mounted separately and need not be listed here. Daemon socket state is
+          retained between invocations, and files referenced by
+          `environment.*.file` are exposed read-only automatically. The jail is
+          available only on Linux.
         '';
         example = lib.literalExpression ''
           combinators: with combinators; [
@@ -62,8 +64,9 @@ in
       default = null;
       description = ''
         Path to a models.json file installed into Prime Agent's configuration
-        directory. The default directory is {file}`~/.prime/agent` and can be
-        changed with `environment.PRIME_AGENT_CODING_AGENT_DIR`.
+        directory and kept in sync before each invocation. The default
+        directory is {file}`~/.prime/agent` and can be changed with
+        `environment.PRIME_AGENT_CODING_AGENT_DIR`.
       '';
       example = lib.literalExpression "./models.json";
     };
@@ -163,7 +166,7 @@ in
     settings = lib.mkOption {
       type = lib.types.attrs;
       default = { };
-      description = "Values merged into the global settings.json at activation time.";
+      description = "Values merged into the global settings.json before each invocation.";
     };
 
     finalRules = lib.mkOption {
@@ -249,12 +252,16 @@ in
       '';
 
       modelsPrelude = lib.optionalString (models != null) ''
-        if [ -L "$PRIME_AGENT_CODING_AGENT_DIR/models.json" ]; then
-          rm "$PRIME_AGENT_CODING_AGENT_DIR/models.json"
-        fi
-        if [ ! -f "$PRIME_AGENT_CODING_AGENT_DIR/models.json" ]; then
-          mkdir -p "$PRIME_AGENT_CODING_AGENT_DIR"
-          install -m 0600 ${models} "$PRIME_AGENT_CODING_AGENT_DIR/models.json"
+        models_file="$PRIME_AGENT_CODING_AGENT_DIR/models.json"
+        if [ -L "$models_file" ]; then rm "$models_file"; fi
+
+        mkdir -p "$PRIME_AGENT_CODING_AGENT_DIR"
+        tmp="$(mktemp "$PRIME_AGENT_CODING_AGENT_DIR/models.json.XXXXXX")"
+        install -m 0600 ${lib.escapeShellArg "${models}"} "$tmp"
+        if [ ! -f "$models_file" ] || ! cmp -s "$tmp" "$models_file"; then
+          mv "$tmp" "$models_file"
+        else
+          rm "$tmp"
         fi
       '';
 
@@ -305,7 +312,24 @@ in
             # Resource and model-selection flags belong to agent launches, not
             # to Prime Agent's public management subcommands.
             case "''${1-}" in
-              help|agents|list|attach|stop|rename|send|schedule|status|doctor|shutdown|package|update|model|session|config)
+              agents)
+                # Public commands must remain argv[1] so Prime Agent recognizes
+                # them before parsing normal launch flags. After upstream removes
+                # the `agents` command token, the remaining arguments launch the
+                # selected session and therefore need the configured resources.
+                exec ${lib.escapeShellArg (lib.getExe package)} agents ${argsStr} ${extraArgsStr} "''${@:2}"
+                ;;
+              attach)
+                # `attach` requires its agent selector immediately after the
+                # command. Insert configured launch flags after that selector,
+                # while leaving later user arguments last so they can override
+                # configured defaults such as provider and model.
+                if [ "$#" -ge 2 ]; then
+                  exec ${lib.escapeShellArg (lib.getExe package)} attach "$2" ${argsStr} ${extraArgsStr} "''${@:3}"
+                fi
+                exec ${lib.escapeShellArg (lib.getExe package)} "$@"
+                ;;
+              help|list|stop|rename|send|schedule|status|doctor|shutdown|package|update|model|session|config)
                 exec ${lib.escapeShellArg (lib.getExe package)} "$@"
                 ;;
               *)
@@ -337,6 +361,26 @@ in
           ''
         else
           ''agent_dir="''${PRIME_AGENT_CODING_AGENT_DIR:-$HOME/.prime/agent}"'';
+
+      environmentFiles =
+        if environment == null then
+          [ ]
+        else if lib.isAttrs environment && !lib.isDerivation environment then
+          lib.mapAttrsToList (_: value: value.file) (
+            lib.filterAttrs (_: value: value != null && value ? file) environment
+          )
+        else
+          [ environment ];
+
+      jailEnvironmentFilesRuntime = lib.concatMapStringsSep "\n" (file: ''
+        environment_file=${lib.escapeShellArg "${file}"}
+        if [ ! -e "$environment_file" ]; then
+          echo "prime-agent: environment file does not exist: $environment_file" >&2
+          exit 1
+        fi
+        environment_source="$(realpath "$environment_file")"
+        RUNTIME_ARGS+=(--ro-bind "$environment_source" "$environment_file")
+      '') environmentFiles;
     in
     {
       finalRules = rulesPath;
@@ -361,7 +405,20 @@ in
                   state_source="$(realpath "$state_dir")"
                   RUNTIME_ARGS+=(--bind "$state_source" "$state_dir")
                 done
+
+                # Prime Agent discovers its daemon socket below TMPDIR. jail.nix
+                # otherwise gives every invocation a fresh /tmp, which would
+                # make the detached daemon unreachable by later invocations.
+                daemon_tmp_dir="$agent_dir/tmp"
+                mkdir -p -- "$daemon_tmp_dir"
+                RUNTIME_ARGS+=(--setenv TMPDIR "$daemon_tmp_dir")
+
+                # Environment values tagged with `file` are read by the inner
+                # wrapper. Expose only those individual files rather than their
+                # containing secret directories.
+                ${jailEnvironmentFilesRuntime}
               '')
+              combinators.no-die-with-parent
               (combinators.try-fwd-env "PRIME_AGENT_CODING_AGENT_DIR")
               (combinators.try-fwd-env "PRIME_AGENT_KERNEL_PYTHON")
               (combinators.try-fwd-env "PRIME_AGENT_KERNEL_VENV")
