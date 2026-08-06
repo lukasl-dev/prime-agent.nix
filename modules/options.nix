@@ -146,8 +146,17 @@ in
               example = lib.literalExpression ''{ value = "''${config.home.homeDirectory}/.prime/agent"; }'';
             };
           };
+          checkedAttrs = lib.types.addCheck attrs (
+            values: lib.all lib.isValidPosixName (builtins.attrNames values)
+          );
         in
-        lib.types.nullOr ((lib.types.either lib.types.path attrs) // { inherit (attrs) getSubOptions; });
+        lib.types.nullOr (
+          (lib.types.either lib.types.path checkedAttrs)
+          // {
+            inherit (attrs) getSubOptions;
+            description = "shell environment file or attribute set with POSIX environment variable names";
+          }
+        );
       default = null;
       description = ''
         Environment exported before Prime Agent starts. This may be a shell
@@ -233,9 +242,9 @@ in
             lib.mapAttrsToList (
               name: value:
               if value ? file then
-                ''export ${name}="$(cat ${lib.escapeShellArg "${value.file}"})"''
+                ''export ${lib.escapeShellArg name}="$(cat ${lib.escapeShellArg "${value.file}"})"''
               else
-                "export ${name}=${lib.escapeShellArg value.value}"
+                "export ${lib.escapeShellArg name}=${lib.escapeShellArg value.value}"
             ) (lib.filterAttrs (_: value: value != null) environment)
           )
         else
