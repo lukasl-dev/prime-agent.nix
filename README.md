@@ -53,7 +53,7 @@ The package includes Node.js, Git, SSH, ripgrep, fd, and uv in its runtime path.
   programs.prime-agent = {
     enable = true;
     # rules = ''Be concise.'';
-    # skills = [ ./skills/my-skill ];
+    # skills = [ ./skills ];
     # extensions = [ ./extensions/my-extension.ts ];
     # themes = [ ./themes/custom.json ];
     # promptTemplates = [ ./prompts ];
@@ -84,6 +84,20 @@ The package includes Node.js, Git, SSH, ripgrep, fd, and uv in its runtime path.
 }
 ```
 
+### Skills
+
+Pass the common `skills/` directory rather than its individual skill directories:
+
+```nix
+programs.prime-agent.skills = [ ./skills ];
+```
+
+Each immediate child remains a correctly named skill directory, for example
+`skills/github/SKILL.md` with `name: github`. Do not instead use
+`[ ./skills/github ./skills/zig ]`: Nix materializes each path separately as a
+store path such as `/nix/store/<hash>-github`, and Prime Agent then rejects the
+skill because its declared name no longer matches its parent directory name.
+
 ### Overlay
 
 ```nix
@@ -104,7 +118,7 @@ let
     modules = [{
       prime-agent = {
         rules = ''Be concise.'';
-        skills = [ ./skills/my-skill ];
+        skills = [ ./skills ];
       };
     }];
   };
