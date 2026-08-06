@@ -85,7 +85,7 @@
 
             docs-md =
               let
-                agent = self.lib.mkPrimeAgent { inherit pkgs; };
+                agent = self.lib.mkAgent { inherit pkgs; };
                 docs = pkgs.nixosOptionsDoc {
                   options = builtins.removeAttrs agent.options [ "_module" ];
                 };
@@ -137,7 +137,7 @@
             };
           in
           {
-            inherit (prime-agent) mkPrimeAgent;
+            inherit (prime-agent) mkAgent;
           };
 
         nixosModules = rec {

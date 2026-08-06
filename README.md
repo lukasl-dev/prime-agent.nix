@@ -14,7 +14,7 @@ It provides:
 - a default npm-built package and an optional Bun-built variant
 - NixOS and Home Manager modules
 - an overlay exposing `pkgs.prime-agent` and `pkgs.prime-agent-bun`
-- `lib.mkPrimeAgent` for constructing a configured wrapper
+- `lib.mkAgent` for constructing a configured wrapper
 - automatic stable-release and dependency-lock updates
 
 > [!IMPORTANT]
@@ -97,7 +97,7 @@ The package includes Node.js, Git, SSH, ripgrep, fd, and uv in its runtime path.
 ```nix
 { inputs, pkgs, ... }:
 let
-  agent = inputs.prime-agent.lib.mkPrimeAgent {
+  agent = inputs.prime-agent.lib.mkAgent {
     inherit pkgs;
     modules = [{
       prime-agent = {

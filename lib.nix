@@ -4,7 +4,7 @@
   jail-nix,
 }:
 {
-  mkPrimeAgent =
+  mkAgent =
     {
       pkgs,
       modules ? [ ],
