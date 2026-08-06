@@ -50,6 +50,22 @@ pkgs.writeShellApplication {
     set -e
     if [ "$audit_status" -gt 1 ]; then exit "$audit_status"; fi
 
+    # npm audit fix can report a remediation yet leave a vulnerable transitive
+    # version selected even when its parent range accepts the fixed release.
+    # Explicitly update any such packages that the final audit still marks as
+    # fixable; unlike a blanket npm update, this does not churn unrelated deps.
+    # The narrow min-release-age override follows upstream's own .npmrc advice
+    # for urgent security fixes while retaining its seven-day cooldown for all
+    # ordinary dependency resolution.
+    audit_json="$(npm audit --package-lock-only --ignore-scripts --json || true)"
+    mapfile -t fixable_packages < <(
+      jq -r '.vulnerabilities[] | select(.fixAvailable != false) | .name' <<< "$audit_json"
+    )
+    if [ "''${#fixable_packages[@]}" -gt 0 ]; then
+      npm update --package-lock-only --ignore-scripts --min-release-age=0 \
+        "''${fixable_packages[@]}"
+    fi
+
     # Bun re-resolves semver ranges in every workspace after noticing the
     # private root's redundant coding-agent dependency. Pin external direct
     # dependencies from package-lock.json and use explicit workspace specs so

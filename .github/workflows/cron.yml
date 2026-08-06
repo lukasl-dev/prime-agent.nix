@@ -23,10 +23,7 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
       - name: Install Nix
-        uses: cachix/install-nix-action@a49548c11d9846ad46ecc0115273879b045f001c # v31
-        with:
-          extra_nix_config: |
-            accept-flake-config = true
+        uses: DeterminateSystems/nix-installer-action@a7ad9c4f0c65208097f4d34f3cfa1913b80cce5c # main
       - name: Update version and lockfiles
         id: update
         run: |

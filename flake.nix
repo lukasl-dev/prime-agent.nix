@@ -12,15 +12,6 @@
     jail-nix.url = "sourcehut:~alexdavid/jail.nix";
   };
 
-  nixConfig = {
-    extra-substituters = [
-      "https://nix-community.cachix.org"
-    ];
-    extra-trusted-public-keys = [
-      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-    ];
-  };
-
   outputs =
     inputs@{
       self,
@@ -44,32 +35,11 @@
           inherit (current) rev hash npmDepsHash;
           version = nixpkgs.lib.removePrefix "v" rev;
 
-          bunPkgs = import nixpkgs {
-            inherit system;
-            overlays = [ bun2nix.overlays.default ];
-          };
-
           src = pkgs.fetchFromGitHub {
             owner = "PrimeIntellect-ai";
             repo = "prime-agent";
             inherit rev hash;
           };
-
-          # Upstream publishes only package-lock.json. bun2nix installs
-          # dependencies before a derivation's normal build hooks, so provide
-          # Bun with a source tree that already contains our generated lock.
-          bunSrc =
-            pkgs.runCommand "prime-agent-${version}-source-with-bun-lock"
-              { nativeBuildInputs = [ pkgs.nodejs ]; }
-              ''
-                    mkdir -p $out
-                    cp -R ${src}/. $out/
-                    chmod -R u+w $out
-                    cp ${./package-lock.json} $out/package-lock.json
-                node ${./scripts/pin-bun-dependencies.mjs} $out --flatten
-                    cp ${./bun.lock} $out/bun.lock
-                    rm $out/package-lock.json
-              '';
 
           syncUpstream = import ./sync-upstream.nix {
             inherit pkgs;
@@ -85,10 +55,33 @@
               inherit src version npmDepsHash;
             };
 
-            prime-agent-bun = bunPkgs.callPackage ./packages/package-bun.nix {
-              src = bunSrc;
-              inherit version;
-            };
+            prime-agent-bun =
+              let
+                bunPkgs = import nixpkgs {
+                  inherit system;
+                  overlays = [ bun2nix.overlays.default ];
+                };
+
+                # Upstream publishes only package-lock.json. bun2nix installs
+                # dependencies before a derivation's normal build hooks, so provide
+                # Bun with a source tree that already contains our generated lock.
+                bunSrc =
+                  bunPkgs.runCommand "prime-agent-${version}-source-with-bun-lock"
+                    { nativeBuildInputs = [ bunPkgs.nodejs ]; }
+                    ''
+                      mkdir -p $out
+                      cp -R ${src}/. $out/
+                      chmod -R u+w $out
+                      cp ${./package-lock.json} $out/package-lock.json
+                      node ${./scripts/pin-bun-dependencies.mjs} $out --flatten
+                      cp ${./bun.lock} $out/bun.lock
+                      rm $out/package-lock.json
+                    '';
+              in
+              bunPkgs.callPackage ./packages/package-bun.nix {
+                src = bunSrc;
+                inherit version;
+              };
 
             docs-md =
               let
