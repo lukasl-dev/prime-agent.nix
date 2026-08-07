@@ -1253,9 +1253,9 @@
     url = "https://registry.npmjs.org/picomatch/-/picomatch-4.0.5.tgz";
     hash = "sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A==";
   };
-  "postcss@8.5.25" = fetchurl {
-    url = "https://registry.npmjs.org/postcss/-/postcss-8.5.25.tgz";
-    hash = "sha512-DTPx3RWSSnWyzLxQnlH0rJP+EW5ekl16ZU4/psbIhA0e53kJfdgaN5vKM+xP7yJtXVu+nfdVFmlgFDEKAe4Pyw==";
+  "postcss@8.5.26" = fetchurl {
+    url = "https://registry.npmjs.org/postcss/-/postcss-8.5.26.tgz";
+    hash = "sha512-u82N74LFzG8ca+dD8puPnplTXoGH4fTPpVGuIbt36G3qvNlkvfD0lEAZSxaly3KX8TS/L1A1gsCEmvKmBcVbkQ==";
   };
   "prebuild-install@7.1.3" = fetchurl {
     url = "https://registry.npmjs.org/prebuild-install/-/prebuild-install-7.1.3.tgz";
@@ -1348,10 +1348,6 @@
   "shebang-regex@1.0.0" = fetchurl {
     url = "https://registry.npmjs.org/shebang-regex/-/shebang-regex-1.0.0.tgz";
     hash = "sha512-wpoSFAxys6b2a2wHZ1XpDSgD7N9iVjg29Ph9uV/uaP9Ex/KXlkTZTeddxDPSYQpgvzKLGJke2UU0AzoGCjNIvQ==";
-  };
-  "shell-quote@1.10.0" = fetchurl {
-    url = "https://registry.npmjs.org/shell-quote/-/shell-quote-1.10.0.tgz";
-    hash = "sha512-w1aiOKwKuRgtwAReIIj89puqg+I7GvX4IbLrvmhXbzQsj1+Zwi4VO3+fa6ZF91TWSjIxoEkKnMeHcLEODK5ZXA==";
   };
   "shell-quote@1.9.0" = fetchurl {
     url = "https://registry.npmjs.org/shell-quote/-/shell-quote-1.9.0.tgz";
@@ -1537,9 +1533,9 @@
     url = "https://registry.npmjs.org/uuid/-/uuid-14.0.0.tgz";
     hash = "sha512-Qo+uWgilfSmAhXCMav1uYFynlQO7fMFiMVZsQqZRMIXp0O7rR7qjkj+cPvBHLgBqi960QCoo/PH2/6ZtVqKvrg==";
   };
-  "vite@8.2.0" = fetchurl {
-    url = "https://registry.npmjs.org/vite/-/vite-8.2.0.tgz";
-    hash = "sha512-pn+CFpM0lwDeKwmOq1ZaBK/9sjorZcgqxki6MbY/jPEVd9vichIlmlD4HmQ5wdP5EgqQCFRaACBxMC7uEGc6lQ==";
+  "vite@8.2.1" = fetchurl {
+    url = "https://registry.npmjs.org/vite/-/vite-8.2.1.tgz";
+    hash = "sha512-EU/eS7BH3XROHh2YnBefjM6DBKA6ZeMZEYQbj7NLWg5wHYlhB8B/Mayd5XsgWq+NFYccDOTemRpdETWR6Ka/lw==";
   };
   "vitest@4.1.9" = fetchurl {
     url = "https://registry.npmjs.org/vitest/-/vitest-4.1.9.tgz";
@@ -1608,5 +1604,9 @@
   "zod@3.25.76" = fetchurl {
     url = "https://registry.npmjs.org/zod/-/zod-3.25.76.tgz";
     hash = "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==";
+  };
+  "zod@4.4.3" = fetchurl {
+    url = "https://registry.npmjs.org/zod/-/zod-4.4.3.tgz";
+    hash = "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==";
   };
 }
