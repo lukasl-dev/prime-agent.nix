@@ -1129,9 +1129,9 @@
     url = "https://registry.npmjs.org/mz/-/mz-2.7.0.tgz";
     hash = "sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==";
   };
-  "nanoid@3.3.17" = fetchurl {
-    url = "https://registry.npmjs.org/nanoid/-/nanoid-3.3.17.tgz";
-    hash = "sha512-xQLf0A3HOMlgHq0n247/LRuAOYmB7dXJ/DvAxGvsSBij45XtBSmQycu+F8ODbHwns/XyFZagyL1+J0Offw1E0g==";
+  "nanoid@3.3.18" = fetchurl {
+    url = "https://registry.npmjs.org/nanoid/-/nanoid-3.3.18.tgz";
+    hash = "sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w==";
   };
   "napi-build-utils@2.0.0" = fetchurl {
     url = "https://registry.npmjs.org/napi-build-utils/-/napi-build-utils-2.0.0.tgz";
@@ -1349,6 +1349,10 @@
     url = "https://registry.npmjs.org/shebang-regex/-/shebang-regex-1.0.0.tgz";
     hash = "sha512-wpoSFAxys6b2a2wHZ1XpDSgD7N9iVjg29Ph9uV/uaP9Ex/KXlkTZTeddxDPSYQpgvzKLGJke2UU0AzoGCjNIvQ==";
   };
+  "shell-quote@1.10.0" = fetchurl {
+    url = "https://registry.npmjs.org/shell-quote/-/shell-quote-1.10.0.tgz";
+    hash = "sha512-w1aiOKwKuRgtwAReIIj89puqg+I7GvX4IbLrvmhXbzQsj1+Zwi4VO3+fa6ZF91TWSjIxoEkKnMeHcLEODK5ZXA==";
+  };
   "shell-quote@1.9.0" = fetchurl {
     url = "https://registry.npmjs.org/shell-quote/-/shell-quote-1.9.0.tgz";
     hash = "sha512-Iov+JwFv/2HcTpcwNMKd8+IWNb8tboQJNQTkAY/LLVK7gGH9jy+LGkVqPxfekHl+yMmiqXszdGWXgkfml7hjqA==";
@@ -1561,9 +1565,9 @@
     url = "https://registry.npmjs.org/wrappy/-/wrappy-1.0.2.tgz";
     hash = "sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==";
   };
-  "ws@8.21.2" = fetchurl {
-    url = "https://registry.npmjs.org/ws/-/ws-8.21.2.tgz";
-    hash = "sha512-54dMVAo4WIe6SKy3vBgN+9bJZqqQ8IMRevAkOLQALhi49qkkQDQfWdAZ8KQlXiEabw88ARXXdUrlvtbKQX+aKw==";
+  "ws@8.21.3" = fetchurl {
+    url = "https://registry.npmjs.org/ws/-/ws-8.21.3.tgz";
+    hash = "sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw==";
   };
   "y18n@5.0.8" = fetchurl {
     url = "https://registry.npmjs.org/y18n/-/y18n-5.0.8.tgz";
@@ -1604,9 +1608,5 @@
   "zod@3.25.76" = fetchurl {
     url = "https://registry.npmjs.org/zod/-/zod-3.25.76.tgz";
     hash = "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==";
-  };
-  "zod@4.4.3" = fetchurl {
-    url = "https://registry.npmjs.org/zod/-/zod-4.4.3.tgz";
-    hash = "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==";
   };
 }
