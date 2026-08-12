@@ -1429,6 +1429,10 @@
     url = "https://registry.npmjs.org/shebang-regex/-/shebang-regex-1.0.0.tgz";
     hash = "sha512-wpoSFAxys6b2a2wHZ1XpDSgD7N9iVjg29Ph9uV/uaP9Ex/KXlkTZTeddxDPSYQpgvzKLGJke2UU0AzoGCjNIvQ==";
   };
+  "shell-quote@1.10.0" = fetchurl {
+    url = "https://registry.npmjs.org/shell-quote/-/shell-quote-1.10.0.tgz";
+    hash = "sha512-w1aiOKwKuRgtwAReIIj89puqg+I7GvX4IbLrvmhXbzQsj1+Zwi4VO3+fa6ZF91TWSjIxoEkKnMeHcLEODK5ZXA==";
+  };
   "shell-quote@1.9.0" = fetchurl {
     url = "https://registry.npmjs.org/shell-quote/-/shell-quote-1.9.0.tgz";
     hash = "sha512-Iov+JwFv/2HcTpcwNMKd8+IWNb8tboQJNQTkAY/LLVK7gGH9jy+LGkVqPxfekHl+yMmiqXszdGWXgkfml7hjqA==";
