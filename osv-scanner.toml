@@ -1,3 +1,7 @@
 [[IgnoredVulns]]
 id = "GHSA-mqxh-6gq7-558m"
 reason = "False positive: the advisory scanner compares Prime Agent's workspace version with the unrelated published pi package version." 
+
+[[IgnoredVulns]]
+id = "GHSA-jmr9-qjv8-65gv"
+reason = "Not reachable in this Nix package: extract-zip is only used for Windows tool bootstrap, while this flake targets Unix and provides fd and ripgrep in PATH. No fixed upstream release exists."
