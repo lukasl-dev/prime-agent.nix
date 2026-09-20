@@ -72,10 +72,9 @@ buildNpmPackage' {
   '';
 
   preBuild = ''
-    # The release already contains generated model metadata. Regenerating it
-    # would make the sandboxed build depend on a mutable network service.
-    substituteInPlace packages/ai/package.json \
-      --replace-fail 'npm run generate-models && ' '''
+    # Older releases generated model metadata during every build. Newer ones
+    # no longer do, so keep this normalization harmless when the command is absent.
+    sed -i 's/npm run generate-models && //' packages/ai/package.json
 
     # Watch flags are inappropriate for a finite, non-interactive Nix build.
     find packages -name package.json -exec sed -i \

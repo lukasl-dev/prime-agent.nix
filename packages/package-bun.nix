@@ -107,8 +107,9 @@ stdenv.mkDerivation {
   '';
 
   preBuild = ''
-        substituteInPlace packages/ai/package.json \
-          --replace-fail 'npm run generate-models && ' '''
+        # Older releases generated model metadata during every build. Newer ones
+        # no longer do, so keep this normalization harmless when the command is absent.
+        sed -i 's/npm run generate-models && //' packages/ai/package.json
 
         find packages -name package.json -exec sed -i \
           -e 's/--watch --preserveWatchOutput//g' \
