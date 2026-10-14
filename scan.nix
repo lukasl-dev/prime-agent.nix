@@ -7,11 +7,8 @@ pkgs.writeShellApplication {
     zizmor
   ];
   text = ''
-    set -euo pipefail
-
     zizmor .github/workflows
-    osv-scanner scan source --lockfile package-lock.json
-    osv-scanner scan source --lockfile bun.lock
+    osv-scanner scan source --lockfile Cargo.lock --lockfile uv.lock
     gitleaks dir --redact --config .gitleaks.toml .
   '';
 }

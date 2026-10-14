@@ -1,49 +1,25 @@
 # prime-agent.nix
 
-<p align="center">
-  <a href="https://lukasl-dev.github.io/prime-agent.nix/">
-    <img src="https://img.shields.io/badge/docs-options-5277C3?style=for-the-badge&logo=nixos&logoColor=white" alt="Options">
-  </a>
-</p>
+Unofficial Nix packaging and configurable NixOS/Home Manager wrappers for
+[Prime Agent](https://github.com/PrimeIntellect-ai/prime-agent).
 
-A Nix flake for [Prime Agent](https://github.com/PrimeIntellect-ai/prime-agent), a self-improving RLM agent for coding and long-running autonomous work.
-
-It provides:
-
-- packages for `nix run` and `nix build`
-- a default npm-built package and an optional Bun-built variant
-- NixOS and Home Manager modules
-- an overlay exposing `pkgs.prime-agent` and `pkgs.prime-agent-bun`
-- `lib.mkAgent` for constructing a configured wrapper
-- automatic stable-release and dependency-lock updates
-
-> [!IMPORTANT]
-> This is an unofficial Nix flake and is not maintained by Prime Intellect.
-
-## Quick start
-
-```bash
-nix run github:lukasl-dev/prime-agent.nix --accept-flake-config
+```sh
+nix run github:lukasl-dev/prime-agent.nix
+nix build .#prime-agent
+nix flake check
 ```
 
-Or build either implementation locally:
+The native Rust package includes its Python runtime sources, a Nix Python
+interpreter, Git, SSH, ripgrep, fd and uv. First kernel use provisions Python
+dependencies through uv and needs network access.
 
-```bash
-nix build .#prime-agent --accept-flake-config
-nix build .#prime-agent-bun --accept-flake-config
-```
-
-The package includes Node.js, Git, SSH, ripgrep, fd, and uv in its runtime path. Prime Agent uses uv for the one-time provisioning of its persistent IPython kernel under `~/.prime/agent/kernel-venv`.
-
-## Usage
+## Configuration
 
 ```nix
 {
   inputs.prime-agent.url = "github:lukasl-dev/prime-agent.nix";
 }
 ```
-
-### NixOS
 
 ```nix
 { inputs, config, ... }:
@@ -52,113 +28,47 @@ The package includes Node.js, Git, SSH, ripgrep, fd, and uv in its runtime path.
 
   programs.prime-agent = {
     enable = true;
-    # rules = ''Be concise.'';
-    # skills = [ ./skills ];
-    # extensions = [ ./extensions/my-extension.ts ];
-    # themes = [ ./themes/custom.json ];
-    # promptTemplates = [ ./prompts ];
-    # models = ./models.json;
-    # settings.defaultProvider = "openai";
-    # settings.defaultModel = "gpt-5";
-    # jail.enable = true;
-    # extraArgs = [ "--provider" "openai" "--model" "gpt-5" ];
-    # environment.OPENAI_API_KEY.file = config.sops.secrets.openai-api-key.path;
-  };
-}
-```
-
-### Home Manager
-
-```nix
-{ inputs, config, ... }:
-{
-  imports = [ inputs.prime-agent.homeModules.default ];
-
-  programs.prime-agent = {
-    enable = true;
     settings.defaultProvider = "openai";
     settings.defaultModel = "gpt-5";
-    environment.PRIME_AGENT_CODING_AGENT_DIR.value =
-      "${config.home.homeDirectory}/.prime/agent";
+    environment.OPENAI_API_KEY.file = config.sops.secrets.openai-api-key.path;
+    # rules = ./AGENTS.md;
+    # skills = [ ./skills ];
+    # settings.theme = "dark";
+    # promptTemplates = [ ./prompts ];
+    # models = ./models.json;
+    # jail.enable = true;
   };
 }
 ```
 
-### Skills
+For Home Manager use `inputs.prime-agent.homeModules.default` with the same
+options. Configuration defaults to `~/.prime/agent`; override it with
+`environment.PRIME_AGENT_CODING_AGENT_DIR.value`.
 
-Pass the common `skills/` directory rather than its individual skill directories:
+Pass a common skills directory, preserving each child skill's directory name:
+`skills = [ ./skills ];`.
 
-```nix
-programs.prime-agent.skills = [ ./skills ];
+The flake also exports `overlays.default` (`pkgs.prime-agent`) and
+`lib.mkAgent { inherit pkgs; modules = [ ... ]; }` (`.package`).
+[Option reference](https://lukasl-dev.github.io/prime-agent.nix/), or build it
+locally with `nix build .#docs-html`.
+
+## Updating
+
+```sh
+nix run .#update
+nix run .#scan
+nix flake check
 ```
 
-Each immediate child remains a correctly named skill directory, for example
-`skills/github/SKILL.md` with `name: github`. Do not instead use
-`[ ./skills/github ./skills/zig ]`: Nix materializes each path separately as a
-store path such as `/nix/store/<hash>-github`, and Prime Agent then rejects the
-skill because its declared name no longer matches its parent directory name.
+`Cargo.lock` tracks the native application; `uv.lock` mirrors upstream's Python
+development lock (kernel bootstrap resolves dependencies separately). The
+updater follows stable upstream tags and pins a real model/MCP catalogue snapshot.
 
-### Overlay
-
-```nix
-{ inputs, ... }:
-{
-  nixpkgs.overlays = [ inputs.prime-agent.overlays.default ];
-  environment.systemPackages = [ pkgs.prime-agent ];
-}
-```
-
-### Custom package
-
-```nix
-{ inputs, pkgs, ... }:
-let
-  agent = inputs.prime-agent.lib.mkAgent {
-    inherit pkgs;
-    modules = [{
-      prime-agent = {
-        rules = ''Be concise.'';
-        skills = [ ./skills ];
-      };
-    }];
-  };
-in
-agent.package
-```
-
-### Jail
-
-On Linux, Prime Agent can run in a [jail.nix](https://sr.ht/~alexdavid/jail.nix/) bubblewrap sandbox:
-
-```nix
-programs.prime-agent.jail.enable = true;
-```
-
-The default jail permits network access and mounts the invocation's working directory read-write. It also retains `~/.prime/agent`, the configured `PRIME_AGENT_CODING_AGENT_DIR`, and Prime Agent's daemon socket state, allowing the daemon and IPython kernel to survive invocations. Files referenced by `environment.*.file` are mounted read-only automatically. Other home files and host tools remain unavailable unless explicitly exposed.
-
-```nix
-programs.prime-agent.jail.permissions = combinators: with combinators; [
-  network
-  mount-cwd
-  (add-pkg-deps [ pkgs.gnumake pkgs.python3 ])
-  (try-readonly (noescape "~/.gitconfig"))
-];
-```
-
-### Selecting the Bun package
-
-```nix
-programs.prime-agent.package =
-  inputs.prime-agent.packages.${pkgs.system}.prime-agent-bun;
-```
-
-## Options
-
-Generate the complete option reference in Markdown or HTML:
-
-```bash
-nix build .#docs-md
-nix build .#docs-html
-```
-
-The output is available at `result/index.md` or `result/index.html`.
+Prime Agent 0.10 replaced its Node implementation with Rust. The Bun package
+and JavaScript/TypeScript extension option have been removed; existing extension
+configurations must be removed too. Custom theme paths are not implemented in
+the Rust TUI; use `settings.theme` (`prime`, `dark`, `light`). The upstream TUI
+also ignores CLI prompt overrides, so `rules` currently applies to headless
+launches only. Skills and prompt templates are written to settings for both
+modes. Package updates are managed by Nix, not the application's self-updater.

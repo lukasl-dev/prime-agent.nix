@@ -1,0 +1,19 @@
+diff --git a/crates/pa-core/src/kernel/bootstrap/venv.rs b/crates/pa-core/src/kernel/bootstrap/venv.rs
+--- a/crates/pa-core/src/kernel/bootstrap/venv.rs
++++ b/crates/pa-core/src/kernel/bootstrap/venv.rs
+@@ -131,15 +131,6 @@ pub(crate) async fn bootstrap_venv(
+         install_args.push(uv_arg.to_string());
+     }
+ 
+-    run_async(
+-        &uv,
+-        &[
+-            "python".to_string(),
+-            "install".to_string(),
+-            PYTHON_VERSION.to_string(),
+-        ],
+-    )
+-    .await?;
+     run_async(
+         &uv,
+         &[

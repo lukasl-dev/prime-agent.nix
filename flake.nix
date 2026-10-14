@@ -4,11 +4,6 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
-    bun2nix = {
-      url = "github:nix-community/bun2nix?ref=2.1.0";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-parts.follows = "flake-parts";
-    };
     jail-nix.url = "sourcehut:~alexdavid/jail.nix";
   };
 
@@ -17,7 +12,6 @@
       self,
       nixpkgs,
       flake-parts,
-      bun2nix,
       jail-nix,
       ...
     }:
@@ -29,10 +23,10 @@
       ];
 
       perSystem =
-        { system, pkgs, ... }:
+        { pkgs, ... }:
         let
           current = builtins.fromJSON (builtins.readFile ./VERSION.json);
-          inherit (current) rev hash npmDepsHash;
+          inherit (current) rev hash cargoHash;
           version = nixpkgs.lib.removePrefix "v" rev;
 
           src = pkgs.fetchFromGitHub {
@@ -41,10 +35,13 @@
             inherit rev hash;
           };
 
-          syncUpstream = import ./sync-upstream.nix {
-            inherit pkgs;
-            bun2nix = bun2nix.packages.${system}.bun2nix;
+          catalogSrc = pkgs.fetchFromGitHub {
+            owner = "PrimeIntellect-ai";
+            repo = "prime-agent-catalog";
+            inherit (current.catalog) rev hash;
           };
+
+          syncUpstream = import ./sync-upstream.nix { inherit pkgs; };
           scan = import ./scan.nix { inherit pkgs; };
         in
         {
@@ -52,36 +49,13 @@
             default = prime-agent;
 
             prime-agent = pkgs.callPackage ./packages/package.nix {
-              inherit src version npmDepsHash;
+              inherit
+                src
+                catalogSrc
+                version
+                cargoHash
+                ;
             };
-
-            prime-agent-bun =
-              let
-                bunPkgs = import nixpkgs {
-                  inherit system;
-                  overlays = [ bun2nix.overlays.default ];
-                };
-
-                # Upstream publishes only package-lock.json. bun2nix installs
-                # dependencies before a derivation's normal build hooks, so provide
-                # Bun with a source tree that already contains our generated lock.
-                bunSrc =
-                  bunPkgs.runCommand "prime-agent-${version}-source-with-bun-lock"
-                    { nativeBuildInputs = [ bunPkgs.nodejs ]; }
-                    ''
-                      mkdir -p $out
-                      cp -R ${src}/. $out/
-                      chmod -R u+w $out
-                      cp ${./package-lock.json} $out/package-lock.json
-                      node ${./scripts/pin-bun-dependencies.mjs} $out --flatten
-                      cp ${./bun.lock} $out/bun.lock
-                      rm $out/package-lock.json
-                    '';
-              in
-              bunPkgs.callPackage ./packages/package-bun.nix {
-                src = bunSrc;
-                inherit version;
-              };
 
             docs-md =
               let
@@ -110,7 +84,12 @@
                 '';
           };
 
-          formatter = pkgs.nixfmt;
+          checks = import ./tests {
+            inherit pkgs self src;
+            package = self.packages.${pkgs.stdenv.hostPlatform.system}.prime-agent;
+          };
+
+          formatter = pkgs.nixfmt-tree;
 
           apps = {
             update = {
@@ -159,7 +138,6 @@
           in
           {
             prime-agent = self.packages.${system}.prime-agent;
-            prime-agent-bun = self.packages.${system}.prime-agent-bun;
           };
       };
     };

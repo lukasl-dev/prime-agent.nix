@@ -5,6 +5,7 @@
 }:
 {
   config,
+  options,
   pkgs,
   lib,
   ...
@@ -42,7 +43,7 @@ in
           Permissions passed to jail.nix. The default permits model and kernel
           downloads and mounts the invocation's working directory read-write.
 
-          Prime Agent's user configuration and default IPython kernel state are
+          Prime Agent's user configuration and default Python kernel state are
           mounted separately and need not be listed here. Daemon socket state is
           retained between invocations, and files referenced by
           `environment.*.file` are exposed read-only automatically. The jail is
@@ -76,32 +77,36 @@ in
         lib.types.either lib.types.lines (lib.types.addCheck lib.types.path builtins.isPath)
       );
       default = null;
-      description = "Instructions appended to Prime Agent's system prompt.";
+      description = "Instructions appended to headless launches. Prime Agent 0.10 does not forward CLI prompt overrides to its interactive TUI.";
       example = lib.literalExpression "./AGENTS.md";
     };
 
     extensions = lib.mkOption {
-      type = lib.types.listOf (lib.types.either lib.types.path lib.types.str);
-      default = [ ];
-      description = "Extension sources passed through repeated `--extension` flags.";
+      type = lib.types.unspecified;
+      visible = false;
+      apply =
+        _:
+        throw "Prime Agent 0.10 removed JavaScript/TypeScript user extensions. Remove the extensions option.";
     };
 
     skills = lib.mkOption {
       type = lib.types.listOf lib.types.path;
       default = [ ];
-      description = "Skill paths passed through repeated `--skill` flags.";
+      description = "Skill paths installed into settings and passed to headless launches.";
     };
 
     themes = lib.mkOption {
-      type = lib.types.listOf lib.types.path;
-      default = [ ];
-      description = "Theme paths passed through repeated `--theme` flags.";
+      type = lib.types.unspecified;
+      visible = false;
+      apply =
+        _:
+        throw "Prime Agent 0.10 does not load custom theme paths. Use settings.theme with prime, dark or light.";
     };
 
     promptTemplates = lib.mkOption {
       type = lib.types.listOf lib.types.path;
       default = [ ];
-      description = "Prompt template paths passed through repeated `--prompt-template` flags.";
+      description = "Prompt template paths installed into settings and passed to headless launches.";
     };
 
     extraArgs = lib.mkOption {
@@ -202,9 +207,7 @@ in
         jail
         models
         rules
-        extensions
         skills
-        themes
         promptTemplates
         extraArgs
         environment
@@ -229,11 +232,9 @@ in
       resourceArgs =
         (lib.optionals (rulesPath != null) [
           "--append-system-prompt"
-          "${rulesPath}"
+          (if builtins.isPath rules then builtins.readFile rules else rules)
         ])
         ++ pathFlags "--skill" skills
-        ++ pathFlags "--extension" extensions
-        ++ pathFlags "--theme" themes
         ++ pathFlags "--prompt-template" promptTemplates;
 
       envPrelude = lib.optionalString (environment != null) (
@@ -242,7 +243,10 @@ in
             lib.mapAttrsToList (
               name: value:
               if value ? file then
-                ''export ${lib.escapeShellArg name}="$(cat ${lib.escapeShellArg "${value.file}"})"''
+                ''
+                  ${name}="$(cat ${lib.escapeShellArg "${value.file}"})"
+                  export ${name}
+                ''
               else
                 "export ${lib.escapeShellArg name}=${lib.escapeShellArg value.value}"
             ) (lib.filterAttrs (_: value: value != null) environment)
@@ -255,7 +259,16 @@ in
           ''
       );
 
-      configDirPrelude = lib.optionalString (models != null || settings != { }) ''
+      resourceSettings =
+        settings
+        // lib.optionalAttrs (skills != [ ]) {
+          skills = (settings.skills or [ ]) ++ map (path: "${path}") skills;
+        }
+        // lib.optionalAttrs (promptTemplates != [ ]) {
+          prompts = (settings.prompts or [ ]) ++ map (path: "${path}") promptTemplates;
+        };
+
+      configDirPrelude = lib.optionalString (models != null || resourceSettings != { }) ''
         PRIME_AGENT_CODING_AGENT_DIR="''${PRIME_AGENT_CODING_AGENT_DIR:-$HOME/.prime/agent}"
         export PRIME_AGENT_CODING_AGENT_DIR
       '';
@@ -267,7 +280,7 @@ in
         mkdir -p "$PRIME_AGENT_CODING_AGENT_DIR"
         tmp="$(mktemp "$PRIME_AGENT_CODING_AGENT_DIR/models.json.XXXXXX")"
         install -m 0600 ${lib.escapeShellArg "${models}"} "$tmp"
-        if [ ! -f "$models_file" ] || ! cmp -s "$tmp" "$models_file"; then
+        if [ ! -f "$models_file" ] || ! ${pkgs.diffutils}/bin/cmp -s "$tmp" "$models_file"; then
           mv "$tmp" "$models_file"
         else
           rm "$tmp"
@@ -275,10 +288,10 @@ in
       '';
 
       settingsPath =
-        if settings == { } then
+        if resourceSettings == { } then
           null
         else
-          pkgs.writeText "prime-agent-settings.json" (builtins.toJSON settings);
+          pkgs.writeText "prime-agent-settings.json" (builtins.toJSON resourceSettings);
 
       settingsPrelude = lib.optionalString (settingsPath != null) ''
         settings_file="$PRIME_AGENT_CODING_AGENT_DIR/settings.json"
@@ -292,7 +305,7 @@ in
           printf '%s\n' '{}' | ${lib.getExe pkgs.jq} -s '.[0] * .[1]' - ${lib.escapeShellArg settingsPath} > "$tmp"
         fi
         chmod 0600 "$tmp"
-        if [ ! -f "$settings_file" ] || ! cmp -s "$tmp" "$settings_file"; then
+        if [ ! -f "$settings_file" ] || ! ${pkgs.diffutils}/bin/cmp -s "$tmp" "$settings_file"; then
           mv "$tmp" "$settings_file"
         else
           rm "$tmp"
@@ -313,6 +326,8 @@ in
           package
         else
           pkgs.writeShellScriptBin "prime-agent" ''
+            set -euo pipefail
+
             ${envPrelude}
             ${configDirPrelude}
             ${modelsPrelude}
@@ -322,23 +337,15 @@ in
             # to Prime Agent's public management subcommands.
             case "''${1-}" in
               agents)
-                # Public commands must remain argv[1] so Prime Agent recognizes
-                # them before parsing normal launch flags. After upstream removes
-                # the `agents` command token, the remaining arguments launch the
-                # selected session and therefore need the configured resources.
                 exec ${lib.escapeShellArg (lib.getExe package)} agents ${argsStr} ${extraArgsStr} "''${@:2}"
                 ;;
               attach)
-                # `attach` requires its agent selector immediately after the
-                # command. Insert configured launch flags after that selector,
-                # while leaving later user arguments last so they can override
-                # configured defaults such as provider and model.
                 if [ "$#" -ge 2 ]; then
                   exec ${lib.escapeShellArg (lib.getExe package)} attach "$2" ${argsStr} ${extraArgsStr} "''${@:3}"
                 fi
                 exec ${lib.escapeShellArg (lib.getExe package)} "$@"
                 ;;
-              help|list|stop|rename|send|schedule|status|doctor|shutdown|package|update|model|session|config)
+              help|list|sessions|stop|rename|send|schedule|status|doctor|telemetry|incident|shutdown|package|mcp|update|model|session|prompt|factory|config|app|daemon|install|manage|remove|uninstall)
                 exec ${lib.escapeShellArg (lib.getExe package)} "$@"
                 ;;
               *)
@@ -395,7 +402,11 @@ in
       finalRules = rulesPath;
       finalArgs = resourceArgs ++ extraArgs;
       finalPackage =
-        if jail.enable && !pkgs.stdenv.hostPlatform.isLinux then
+        if (lib.getAttrFromPath (optionPath ++ [ "extensions" ]) options).isDefined then
+          throw "Prime Agent 0.10 removed JavaScript/TypeScript user extensions. Remove the extensions option."
+        else if (lib.getAttrFromPath (optionPath ++ [ "themes" ]) options).isDefined then
+          throw "Prime Agent 0.10 does not load custom theme paths. Use settings.theme with prime, dark or light."
+        else if jail.enable && !pkgs.stdenv.hostPlatform.isLinux then
           throw "prime-agent.jail is supported only on Linux"
         else if jail.enable then
           let
@@ -429,6 +440,7 @@ in
               '')
               combinators.no-die-with-parent
               (combinators.try-fwd-env "PRIME_AGENT_CODING_AGENT_DIR")
+              (combinators.try-fwd-env "PRIME_AGENT_DAEMON_SOCKET")
               (combinators.try-fwd-env "PRIME_AGENT_KERNEL_PYTHON")
               (combinators.try-fwd-env "PRIME_AGENT_KERNEL_VENV")
             ];

@@ -1,11 +1,7 @@
-{
-  pkgs,
-  bun2nix,
-}:
+{ pkgs }:
 pkgs.writeShellApplication {
   name = "prime-agent-update";
   runtimeInputs = with pkgs; [
-    bun
     coreutils
     gawk
     git
@@ -13,14 +9,8 @@ pkgs.writeShellApplication {
     gnused
     jq
     nix
-    nodejs
-    npm-lockfile-fix
-    prefetch-npm-deps
-    bun2nix
   ];
   text = ''
-    set -euo pipefail
-
     tmpdir="$(mktemp -d)"
     trap 'rm -rf "$tmpdir"' EXIT
 
@@ -36,88 +26,48 @@ pkgs.writeShellApplication {
     hash="$(jq -r .hash <<< "$source_json")"
     src="$(jq -r .storePath <<< "$source_json")"
 
-    cp -R "$src"/. "$tmpdir"
-    chmod -R u+w "$tmpdir"
-    npm-lockfile-fix "$tmpdir/package-lock.json"
+    for file in Cargo.toml Cargo.lock prime-agent-runtime/uv.lock; do
+      if [ ! -f "$src/$file" ]; then
+        echo "Prime Agent $rev has no $file; review upstream packaging before updating" >&2
+        exit 1
+      fi
+    done
 
-    pushd "$tmpdir" >/dev/null
-    # npm exits 1 when the only remaining result is a known advisory against
-    # the workspace package itself. Preserve any remediations it made, but do
-    # not mistake that false positive for an updater failure.
-    set +e
-    npm audit fix --package-lock-only --ignore-scripts
-    audit_status=$?
-    set -e
-    if [ "$audit_status" -gt 1 ]; then exit "$audit_status"; fi
-
-    # npm audit fix can report a remediation yet leave a vulnerable transitive
-    # version selected even when its parent range accepts the fixed release.
-    # Explicitly update any such packages that the final audit still marks as
-    # fixable; unlike a blanket npm update, this does not churn unrelated deps.
-    # The narrow min-release-age override follows upstream's own .npmrc advice
-    # for urgent security fixes while retaining its seven-day cooldown for all
-    # ordinary dependency resolution.
-    audit_json="$(npm audit --package-lock-only --ignore-scripts --json || true)"
-    mapfile -t fixable_packages < <(
-      jq -r '.vulnerabilities[] | select(.fixAvailable != false) | .name' <<< "$audit_json"
-    )
-    if [ "''${#fixable_packages[@]}" -gt 0 ]; then
-      npm update --package-lock-only --ignore-scripts --min-release-age=0 \
-        "''${fixable_packages[@]}"
-    fi
-
-    # Bun re-resolves semver ranges in every workspace after noticing the
-    # private root's redundant coding-agent dependency. Pin external direct
-    # dependencies from package-lock.json and use explicit workspace specs so
-    # the Nix build needs package tarballs, but no mutable registry manifests.
-    node ${./scripts/pin-bun-dependencies.mjs} "$tmpdir" --flatten
-
-    mv package-lock.json package-lock.npm.json
-    bun install --ignore-scripts
-    mv package-lock.npm.json package-lock.json
-    bun2nix -o bun.nix
-    popd >/dev/null
-
-    # Fetcher v2 stores npm's registry metadata as well as package tarballs.
-    # Prime Agent's lockfile needs that metadata for scoped dependencies whose
-    # upstream lock entries npm cannot consume in cache-only mode.
-    cat > "$tmpdir/npm-deps.nix" <<'NIX'
+    cat > "$tmpdir/cargo-deps.nix" <<NIX
     let
       pkgs = import ${pkgs.path} { };
     in
-    pkgs.fetchNpmDeps {
-      src = ./.;
+    pkgs.rustPlatform.fetchCargoVendor {
+      src = builtins.storePath "$src";
       hash = pkgs.lib.fakeHash;
-      fetcherVersion = 2;
     }
     NIX
 
-    set +e
-    npm_deps_log="$(nix-build "$tmpdir/npm-deps.nix" --no-out-link 2>&1)"
-    npm_deps_status=$?
-    set -e
-    if [ "$npm_deps_status" -eq 0 ]; then
-      echo "Expected the fake npm dependency hash to fail" >&2
+    if nix build --file "$tmpdir/cargo-deps.nix" --no-link > "$tmpdir/cargo-deps.log" 2>&1; then
+      echo "Expected the fake Cargo dependency hash to fail" >&2
       exit 1
     fi
-    npm_deps_hash="$(sed -n 's/^[[:space:]]*got:[[:space:]]*//p' <<< "$npm_deps_log" | tail -n1)"
-    if [[ ! "$npm_deps_hash" =~ ^sha256- ]]; then
-      printf '%s\n' "$npm_deps_log" >&2
-      echo "Could not determine the npm dependency hash" >&2
+    cargo_hash="$(sed -n 's/^[[:space:]]*got:[[:space:]]*//p' "$tmpdir/cargo-deps.log" | tail -n1)"
+    if [[ ! "$cargo_hash" =~ ^sha256- ]]; then
+      cat "$tmpdir/cargo-deps.log" >&2
+      echo "Could not determine the Cargo dependency hash" >&2
       exit 1
     fi
 
-    jq \
-      --arg rev "$rev" \
-      --arg hash "$hash" \
-      --arg npmDepsHash "$npm_deps_hash" \
-      '.rev = $rev | .hash = $hash | .npmDepsHash = $npmDepsHash' \
-      VERSION.json > "$tmpdir/VERSION.json"
+    catalog_rev="$(git ls-remote https://github.com/PrimeIntellect-ai/prime-agent-catalog.git refs/heads/main | awk '{ print $1 }')"
+    test -n "$catalog_rev"
+    catalog_json="$(nix store prefetch-file --json --unpack \
+      "https://github.com/PrimeIntellect-ai/prime-agent-catalog/archive/$catalog_rev.tar.gz")"
+    catalog_hash="$(jq -r .hash <<< "$catalog_json")"
 
-    cp "$tmpdir/package-lock.json" package-lock.json
-    cp "$tmpdir/bun.lock" bun.lock
-    cp "$tmpdir/bun.nix" bun.nix
+    jq -n --arg rev "$rev" --arg hash "$hash" --arg cargoHash "$cargo_hash" \
+      --arg catalogRev "$catalog_rev" --arg catalogHash "$catalog_hash" \
+      '{rev: $rev, hash: $hash, cargoHash: $cargoHash, catalog: {rev: $catalogRev, hash: $catalogHash}}' \
+      > "$tmpdir/VERSION.json"
+
+    cp "$src/Cargo.lock" Cargo.lock
+    cp "$src/prime-agent-runtime/uv.lock" uv.lock
     cp "$tmpdir/VERSION.json" VERSION.json
-    echo "Updated Prime Agent lockfiles and VERSION.json to $rev"
+    echo "Updated Prime Agent source and dependency locks to $rev"
   '';
 }

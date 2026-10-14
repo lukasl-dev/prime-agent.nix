@@ -40,11 +40,10 @@ jobs:
         run: nix run .#scan --accept-flake-config
       - name: Build packages
         run: |
-          if git diff --quiet -- VERSION.json package-lock.json bun.lock bun.nix; then
+          if git diff --quiet -- VERSION.json Cargo.lock uv.lock; then
             exit 0
           fi
-          nix build path:.#prime-agent --no-link --accept-flake-config
-          nix build path:.#prime-agent-bun --no-link --accept-flake-config
+          nix flake check path:. --accept-flake-config
       - name: Commit and push changes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -56,13 +55,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet --exit-code VERSION.json package-lock.json bun.lock bun.nix; then
+          if git diff --quiet --exit-code VERSION.json Cargo.lock uv.lock; then
             echo "No changes to commit"
             exit 0
           fi
 
           push_tag=false
-          git add VERSION.json package-lock.json bun.lock bun.nix
+          git add VERSION.json Cargo.lock uv.lock
           if [[ "$VERSION_CHANGED" == "true" ]]; then
             git commit -m "Update Prime Agent to ${VERSION}"
             if ! git ls-remote --tags --refs origin "refs/tags/${VERSION}" | grep -q .; then
@@ -70,7 +69,7 @@ jobs:
               push_tag=true
             fi
           else
-            git commit -m "Update lockfiles"
+            git commit -m "Update catalog and dependency locks"
           fi
 
           if [[ -n "$(git status --porcelain)" ]]; then
