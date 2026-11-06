@@ -2,7 +2,10 @@ set -euo pipefail
 : "${agent:?}" "${configured:?}" "${payload:?}" "${version:?}" "${rules:?}" "${source:?}"
 
 export HOME="$PWD/home"
-export TMPDIR="$PWD/tmp"
+# Avoid macOS's shared /tmp fallback for long worker socket paths.
+export TMPDIR
+TMPDIR="$(mktemp -d /tmp/pa-check.XXXXXX)"
+trap 'rm -rf "$TMPDIR"' EXIT
 export XDG_DATA_HOME="$HOME/.local/share"
 export PI_OFFLINE=1 DO_NOT_TRACK=1
 unset PRIME_AGENT_CODING_AGENT_DIR PRIME_AGENT_DAEMON_SOCKET PRIME_AGENT_FAUX_SCRIPT
@@ -46,7 +49,7 @@ unset PRIME_AGENT_FAUX_SCRIPT
 
 "$agent" --mode daemon > daemon.log 2>&1 &
 daemon_pid=$!
-trap 'kill "$daemon_pid" 2>/dev/null || true; wait "$daemon_pid" 2>/dev/null || true' EXIT
+trap 'kill "$daemon_pid" 2>/dev/null || true; wait "$daemon_pid" 2>/dev/null || true; rm -rf "$TMPDIR"' EXIT
 socket="$TMPDIR/prime-agent-rust-$(id -u)/daemon.sock"
 for _ in $(seq 1 100); do
   if [ -S "$socket" ]; then break; fi
@@ -68,4 +71,4 @@ for _ in $(seq 1 100); do
 done
 if kill -0 "$daemon_pid" 2>/dev/null; then cat shutdown.txt >&2; exit 1; fi
 wait "$daemon_pid"
-trap - EXIT
+trap 'rm -rf "$TMPDIR"' EXIT

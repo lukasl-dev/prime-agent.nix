@@ -36,7 +36,8 @@ rustPlatform.buildRustPackage {
     substituteInPlace crates/pa-daemon/src/platform/paths.rs \
       --replace-fail '<tmpdir>/prime-agent-<uid>/' '<tmpdir>/prime-agent-rust-<uid>/' \
       --replace-fail '"prime-agent-{uid}"' '"prime-agent-rust-{uid}"' \
-      --replace-fail '"prime-agent-{}", uid.trim()' '"prime-agent-rust-{}", uid.trim()'
+      --replace-fail '/tmp/prime-agent-501' '/tmp/prime-agent-rust-501' \
+      --replace-fail '"prime-agent-501"' '"prime-agent-rust-501"'
   '';
 
   cargoBuildFlags = [
